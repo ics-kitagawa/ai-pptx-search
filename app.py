@@ -31,11 +31,56 @@ def highlight(text: str, query: str) -> str:
     pat = re.compile("|".join(map(re.escape, sorted(set(words), key=len, reverse=True))), re.IGNORECASE)
     return pat.sub(lambda m: f"<mark>{m.group(0)}</mark>", text) if words else text
 
-# 既存の highlight はそのまま使う（表では使わない）
+def _extract_keywords(query: str) -> list[str]:
+    """
+    クエリから強調候補を抽出。英数字語は単語境界で扱い、日本語はそのまま。
+    """
+    # 英数字・日本語のざっくりトークン化
+    words = [w for w in re.split(r"[^\w\u3040-\u30ff\u3400-\u9fff]+", query) if w]
+    # 短すぎる断片はノイズになりがちなので、英数字1文字のみは除外（日本語はOK）
+    out = []
+    for w in words:
+        if re.fullmatch(r"[A-Za-z0-9_]", w):  # 英数字1文字だけは除外
+            continue
+        out.append(w)
+    # 長い語を優先して置換できるよう降順
+    return sorted(set(out), key=len, reverse=True)
+
+def markdown_bold_highlight(text: str, query: str, extra_keywords: list[str] | None = None) -> str:
+    """
+    Markdownのまま **太字** でハイライトする。
+    - HTMLは使わないので表(|…|)が壊れない
+    - 既存のMarkdownはそのまま（太字の上書きは許容）
+    """
+    if not text or not query:
+        return text
+
+    kws = _extract_keywords(query)
+    if extra_keywords:
+        kws += list(extra_keywords)
+    kws = sorted(set(kws), key=len, reverse=True)
+    if not kws:
+        return text
+
+    # 英数字語は単語境界、その他（日本語など）は部分一致
+    patterns = []
+    for kw in kws:
+        esc = re.escape(kw)
+        if re.fullmatch(r"[A-Za-z0-9_]+", kw):
+            patterns.append(rf"\b{esc}\b")
+        else:
+            patterns.append(esc)
+
+    pat = re.compile("|".join(patterns), flags=re.IGNORECASE)
+
+    # 置換：マッチ部分を **…** で囲む
+    def repl(m: re.Match) -> str:
+        s = m.group(0)
+        return f"**{s}**"
+
+    return pat.sub(repl, text)
+
 def looks_like_markdown_table(text: str) -> bool:
-    """
-    ざっくり：| header | の行 と | --- | の区切り行があればテーブルと判断
-    """
     if not text or "|" not in text:
         return False
     has_row = re.search(r"^\s*\|.*\|\s*$", text, flags=re.MULTILINE)
@@ -47,11 +92,14 @@ def render_block_with_markdown_and_highlight(block: str, query: str):
     if not block:
         return
     if looks_like_markdown_table(block):
-        # 表は素のMarkdownとして描画（テーブルが崩れない）
-        st.markdown(block, unsafe_allow_html=False)
+        # ★ テーブルはMarkdown太字ハイライトで（安全）
+        # 必要なら重要語を追加指定（例: 矩形選択の同義語など）
+        # block2 = markdown_bold_highlight(block, query, extra_keywords=["矩形選択", "範囲選択"])
+        block2 = markdown_bold_highlight(block, query)
+        st.markdown(block2, unsafe_allow_html=False)
     else:
-        # それ以外はハイライト（<mark>）OK
-        html = highlight(block, query)  # ← ここで改行置換はしない！
+        # テーブル以外は従来の <mark> ハイライトを使う
+        html = highlight(block, query)  # ※ 改行→<br> 変換はしない
         st.markdown(html, unsafe_allow_html=True)
 
 # ====== 再ランク（Cross-Encoder） ======
@@ -158,7 +206,7 @@ def list_doc_names() -> List[str]:
 
 # ====== UI ======
 st.set_page_config(page_title="社内PPTX 横断検索AI（RAG）", layout="centered")
-st.title("社内PPTX 横断検索AI（RAG）")
+st.title("パワポ 横断検索AI（RAG）")
 st.caption("Step⑤ 仕上げ版：再ランク＋引用つき回答")
 
 with st.sidebar:
