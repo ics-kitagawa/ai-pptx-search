@@ -36,7 +36,7 @@ python pptx_extract.py
 ※このステップは一番最初、またはパワポを追加/削除したときに実行してください
 
 ```bash
-python chunks_slides.py
+python chunk_slides.py
 ```
 
 #### ④ベクトル化する
