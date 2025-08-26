@@ -16,7 +16,7 @@ import re
 DB_DIR      = Path("vectordb")
 COLLECTION  = "pptx_slides"
 EMBED_MODEL = "text-embedding-3-small"
-CHAT_MODEL  = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+CHAT_MODEL  = os.getenv("CHAT_MODEL", "gpt-4o")
 TOP_K       = 15          # まずDBから拾う件数
 TOP_K_LLM   = 6           # LLMに渡す件数（短く絞る）
 CHUNKS_PATH = Path("chunks.jsonl")  # docフィルタ候補の取得に使う

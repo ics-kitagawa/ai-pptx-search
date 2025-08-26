@@ -11,7 +11,7 @@ from openai import OpenAI
 DB_DIR      = Path("vectordb")
 COLLECTION  = "pptx_slides"
 EMBED_MODEL = "text-embedding-3-small"
-CHAT_MODEL  = os.getenv("CHAT_MODEL", "gpt-4o-mini")  # 必要なら gpt-4o に
+CHAT_MODEL  = os.getenv("CHAT_MODEL", "gpt-4o")  # 必要ならモデルを変更
 
 def get_clients():
     if not os.getenv("OPENAI_API_KEY"):
